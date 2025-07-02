@@ -1,0 +1,69 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_classification, make_moons
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
+from matplotlib.colors import ListedColormap
+
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+
+# 生成数据（非线性数据）
+X, y = make_moons(n_samples=2000, noise=0.3, random_state=42)
+
+# 拆分训练集和测试集
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# 模型训练
+lr = LogisticRegression()
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+
+lr.fit(X_train, y_train)
+rf.fit(X_train, y_train)
+
+# 预测
+y_pred_lr = lr.predict(X_test)
+y_pred_rf = rf.predict(X_test)
+
+y_proba_lr = lr.predict_proba(X_test)[:, 1]
+y_proba_rf = rf.predict_proba(X_test)[:, 1]
+
+# ROC曲线
+fpr_lr, tpr_lr, _ = roc_curve(y_test, y_proba_lr)
+fpr_rf, tpr_rf, _ = roc_curve(y_test, y_proba_rf)
+
+# 创建画布
+fig, axs = plt.subplots(2, 2, figsize=(16, 12))
+cm = plt.cm.RdYlBu
+
+# 图1：原始数据分布
+axs[0, 0].scatter(X[:, 0], X[:, 1], c=y, cmap=cm, edgecolor='k', s=60)
+axs[0, 0].set_title("图1：原始数据分布（非线性）", fontsize=14)
+
+# 图2：逻辑回归决策边界
+xx, yy = np.meshgrid(np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 300),
+                     np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 300))
+Z_lr = lr.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+axs[0, 1].contourf(xx, yy, Z_lr, alpha=0.6, cmap=cm)
+axs[0, 1].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap=cm, edgecolor='k', s=50)
+axs[0, 1].set_title("图2：逻辑回归的决策边界", fontsize=14)
+
+# 图3：随机森林决策边界
+Z_rf = rf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+axs[1, 0].contourf(xx, yy, Z_rf, alpha=0.6, cmap=cm)
+axs[1, 0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap=cm, edgecolor='k', s=50)
+axs[1, 0].set_title("图3：随机森林的决策边界", fontsize=14)
+
+# 图4：ROC曲线比较
+axs[1, 1].plot(fpr_lr, tpr_lr, label=f"逻辑回归 (AUC={roc_auc_score(y_test, y_proba_lr):.2f})", linewidth=2)
+axs[1, 1].plot(fpr_rf, tpr_rf, label=f"随机森林 (AUC={roc_auc_score(y_test, y_proba_rf):.2f})", linewidth=2)
+axs[1, 1].plot([0, 1], [0, 1], 'k--')
+axs[1, 1].set_title("图4：ROC 曲线对比", fontsize=14)
+axs[1, 1].set_xlabel("假阳性率 (FPR)")
+axs[1, 1].set_ylabel("真正率 (TPR)")
+axs[1, 1].legend(loc="lower right")
+
+plt.tight_layout()
+plt.show()
