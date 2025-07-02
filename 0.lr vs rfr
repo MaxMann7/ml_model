@@ -1,0 +1,78 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.inspection import permutation_importance, PartialDependenceDisplay
+
+
+np.random.seed(42)
+
+# 构造数据
+n_samples = 3000
+X = pd.DataFrame({
+    "x1": np.random.uniform(-5, 5, n_samples),
+    "x2": np.random.uniform(-5, 5, n_samples),
+    "x3": np.random.uniform(-5, 5, n_samples),
+})
+# 非线性目标变量
+y = 3 * X["x1"]**2 + 2 * np.sin(X["x2"]) + 1.5 * X["x3"] + np.random.normal(0, 1, n_samples)
+
+# 划分训练测试集
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+# 线性回归模型
+lr = LinearRegression()
+lr.fit(X_train, y_train)
+y_pred_lr = lr.predict(X_test)
+
+# 随机森林回归模型
+rf = RandomForestRegressor(n_estimators=200, max_depth=6, random_state=42)
+rf.fit(X_train, y_train)
+y_pred_rf = rf.predict(X_test)
+
+# 图1：真实值 vs 预测值
+plt.figure(figsize=(10,5))
+plt.scatter(y_test, y_pred_lr, color='red', alpha=0.6, label='Linear Regression')
+plt.scatter(y_test, y_pred_rf, color='blue', alpha=0.6, label='Random Forest')
+plt.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', label='Ideal')
+plt.xlabel('True Values')
+plt.ylabel('Predictions')
+plt.title('图1：真实值 vs 模型预测值')
+plt.legend()
+plt.show()
+
+# 图2：残差分布
+resid_lr = y_test - y_pred_lr
+resid_rf = y_test - y_pred_rf
+
+plt.figure(figsize=(10,5))
+sns.histplot(resid_lr, kde=True, color='red', label='Linear Regression', stat='density', bins=30)
+sns.histplot(resid_rf, kde=True, color='blue', label='Random Forest', stat='density', bins=30)
+plt.title("图2：残差分布图")
+plt.xlabel("Residual")
+plt.legend()
+plt.show()
+
+# 图3：特征重要性（RF）
+importances = rf.feature_importances_
+feature_names = X.columns
+forest_importances = pd.Series(importances, index=feature_names)
+
+plt.figure(figsize=(8,5))
+sns.barplot(x=forest_importances.values, y=forest_importances.index, palette="viridis")
+plt.title("图3：特征重要性（随机森林）")
+plt.xlabel("Importance")
+plt.ylabel("Feature")
+plt.show()
+
+# 图4：Partial Dependence（非线性关系可视化）
+features_to_plot = ["x1", "x2", "x3"]
+PartialDependenceDisplay.from_estimator(rf, X_test, features_to_plot, grid_resolution=50)
+plt.suptitle("图4：Partial Dependence Plot（单变量影响）")
+plt.tight_layout()
+plt.show()
